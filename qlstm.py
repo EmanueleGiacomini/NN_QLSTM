@@ -8,7 +8,7 @@ from torch_qnn.q_layers import QuaternionLinear
 
 
 class QLSTM(nn.Module):
-    def __init__(self, feat_size, hidden_size, CUDA):
+    def __init__(self, feat_size, hidden_size, CUDA, num_classes=None):
         super(QLSTM, self).__init__()
 
         self.act = nn.Tanh()
@@ -17,9 +17,11 @@ class QLSTM(nn.Module):
         self.input_dim = feat_size
         self.hidden_dim = hidden_size
         self.CUDA = CUDA
-
-        self.num_classes = feat_size + 1  # +1 because feat_size = no. on the sequence and the output one hot will
-        # also have a blank dimension so FEAT_SIZE + 1 BLANK
+        if num_classes is None:
+            self.num_classes = feat_size + 1  # +1 because feat_size = no. on the sequence and the output one hot will
+            # also have a blank dimension so FEAT_SIZE + 1 BLANK
+        else:
+            self.num_classes = num_classes
 
         # Gates initialization
         # Forget Gate
@@ -39,7 +41,7 @@ class QLSTM(nn.Module):
         self.fco = nn.Linear(self.hidden_dim, self.num_classes)
 
         # Optimizer
-        self.adam = torch.optim.Adam(self.parameters(), lr=0.005)
+        self.adam = torch.optim.Adam(self.parameters(), lr=0.001)
 
     def forward(self, x):
         # Initialize latent space h
@@ -72,7 +74,6 @@ class QLSTM(nn.Module):
             c = it * self.act(at) + ft * c
             # c -> Updated memory cell
             h = ot * self.act(c)
-
             output = self.fco(h)
             out.append(output.unsqueeze(0))
 
@@ -80,7 +81,7 @@ class QLSTM(nn.Module):
 
 
 class LSTM(nn.Module):
-    def __init__(self, feat_size, hidden_size, CUDA):
+    def __init__(self, feat_size, hidden_size, CUDA, num_classes=None):
         super(LSTM, self).__init__()
 
         # Reading options
@@ -90,8 +91,11 @@ class LSTM(nn.Module):
         self.hidden_dim = hidden_size
         self.CUDA = CUDA
 
-        self.num_classes = feat_size + 1  # +1 because feat_size = no. on the sequence and the output one hot will
-        # also have a blank dimension so FEAT_SIZE + 1 BLANK
+        if num_classes is None:
+            self.num_classes = feat_size + 1  # +1 because feat_size = no. on the sequence and the output one hot will
+            # also have a blank dimension so FEAT_SIZE + 1 BLANK
+        else:
+            self.num_classes = num_classes
 
         # Gates initialization
         # Forget Gate
@@ -111,7 +115,7 @@ class LSTM(nn.Module):
         self.fco = nn.Linear(self.hidden_dim, self.num_classes)
 
         # Optimizer
-        self.adam = torch.optim.Adam(self.parameters(), lr=0.005)
+        self.adam = torch.optim.Adam(self.parameters(), lr=0.001)
 
     def forward(self, x):
         # Initialize latent space h

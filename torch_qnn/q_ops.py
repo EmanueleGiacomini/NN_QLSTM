@@ -97,9 +97,9 @@ def quaternion_linear(qinput, r_weight, i_weight, j_weight, k_weight, bias=None)
     """
 
     w_r = torch.cat([r_weight, -i_weight, -j_weight, -k_weight], dim=0)
-    w_i = torch.cat([i_weight, r_weight, k_weight, -j_weight], dim=0)
-    w_j = torch.cat([j_weight, -k_weight, r_weight, i_weight], dim=0)
-    w_k = torch.cat([k_weight, j_weight, -i_weight, r_weight], dim=0)
+    w_i = torch.cat([i_weight, r_weight, -k_weight, j_weight], dim=0)
+    w_j = torch.cat([j_weight, k_weight, r_weight, -i_weight], dim=0)
+    w_k = torch.cat([k_weight, -j_weight, i_weight, r_weight], dim=0)
     W = torch.cat([w_r, w_i, w_j, w_k], dim=1).float()
 
     if qinput.dim() == 2:
