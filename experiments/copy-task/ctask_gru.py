@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
-from qlstm import LSTM, QLSTM
+from qgru import GRU, QGRU
 
 
 def tovar(x, cuda):
@@ -73,7 +73,6 @@ def generateTask(batch, seq_len, feat_size, blank_size, embedding):
 
     return np.array(data), np.array(labels)
 
-
 """ Experiment setup """
 CUDA = True
 N_BATCH_TRAIN = 10
@@ -91,23 +90,23 @@ if __name__ == '__main__':
         os.system('mkdir out')
 
     if CUDA:
-        net_r = LSTM(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
-        net_q = QLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA).cuda()
+        net_r = GRU(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
+        net_q = QGRU(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
     else:
-        net_r = LSTM(FEAT_SIZE, HIDDEN_SIZE, CUDA)
-        net_q = QLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA)
+        net_r = GRU(FEAT_SIZE, HIDDEN_SIZE, CUDA)
+        net_q = QGRU(FEAT_SIZE, HIDDEN_SIZE, CUDA)
 
     emb = nn.Embedding(FEAT_SIZE + 2, FEAT_SIZE, max_norm=1.0)
 
-    no_params_q = sum(p.numel() for p in net_q.parameters() if p.requires_grad)
     no_params_r = sum(p.numel() for p in net_r.parameters() if p.requires_grad)
-    print(f'QLSTM Trainable parameters: {no_params_q}')
-    print(f'LSTM Trainable parameters: {no_params_r}')
+    no_params_q = sum(p.numel() for p in net_q.parameters() if p.requires_grad)
+    print(f'GRU Trainable parameters: {no_params_r}')
+    print(f'QGRU Trainable parameters: {no_params_q}')
 
     """Training Loop"""
     acc_r = []
-    acc_q = []
     loss_r = []
+    acc_q = []
     loss_q = []
     for epoch in range(EPOCHS):
         x_train, y_train = generateTask(N_BATCH_TRAIN, SEQ_LENGTH, FEAT_SIZE, BLANK_SIZE, emb)
@@ -141,7 +140,7 @@ if __name__ == '__main__':
             acc_r.append(acc)
             loss_r.append(val_loss)
         if epoch % 10 == 0:
-            print(f'LSTM It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')
+            print(f'GRU It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')
         # QLSTM TRAINING
         net_q.zero_grad()
         p = net_q.forward(x_train_var)
@@ -163,12 +162,4 @@ if __name__ == '__main__':
             acc_q.append(acc)
             loss_q.append(val_loss)
         if epoch % 10 == 0:
-            print(f'QLSTM It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')
-
-    print('Training phase ended.')
-    np.savetxt(f'out/memory_task_acc_q_{BLANK_SIZE}.txt', acc_q)
-    np.savetxt(f'out/memory_task_acc_r_{BLANK_SIZE}.txt', acc_r)
-    np.savetxt(f'out/memory_task_loss_q_{BLANK_SIZE}.txt', loss_q)
-    np.savetxt(f'out/memory_task_loss_r_{BLANK_SIZE}.txt', loss_r)
-
-    exit(0)
+            print(f'QGRU It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')

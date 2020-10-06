@@ -12,7 +12,7 @@ from .q_ops import *
 
 
 class QuaternionLinear(nn.Module):
-    def __init__(self, in_features, out_features, bias=True, init_criterion='glorot', weight_init='quaternion',
+    def __init__(self, in_features, out_features, bias=True, init_criterion='glorot',   weight_init='quaternion',
                  seed=None, quaternion_format=True, scale=False):
         super(QuaternionLinear, self).__init__()
         self.in_features = in_features // 4
