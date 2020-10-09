@@ -268,8 +268,8 @@ def load_cb(cval, fval, title, total_time):
 CUDA = True
 FEAT_SIZE = 8
 SEQ_LEN = 128
-QHIDDEN_SIZE = 16
-HIDDEN_SIZE = 16
+QHIDDEN_SIZE = 40
+HIDDEN_SIZE = 20
 OUTPUT_SIZE = NUM_CLASSES
 EPOCHS = 51
 BATCH_SIZE = 64
@@ -397,14 +397,14 @@ if __name__ == '__main__':
         val_loss_q.append(vloss_q)
 
     print('Training phase ended.')
-    np.savetxt(f'out/3_har_task_acc_q.txt', acc_q)
-    np.savetxt(f'out/3_har_task_acc_r.txt', acc_r)
-    np.savetxt(f'out/3_har_task_loss_q.txt', loss_q)
-    np.savetxt(f'out/3_har_task_loss_r.txt', loss_r)
-    np.savetxt(f'out/3_har_task_val_acc_q.txt', val_acc_q)
-    np.savetxt(f'out/3_har_task_val_acc_r.txt', val_acc_r)
-    np.savetxt(f'out/3_har_task_val_loss_q.txt', val_loss_q)
-    np.savetxt(f'out/3_har_task_val_loss_r.txt', val_loss_r)
+    np.savetxt(f'out/2_har_task_acc_q.txt', acc_q)
+    np.savetxt(f'out/2_har_task_acc_r.txt', acc_r)
+    np.savetxt(f'out/2_har_task_loss_q.txt', loss_q)
+    np.savetxt(f'out/2_har_task_loss_r.txt', loss_r)
+    np.savetxt(f'out/2_har_task_val_acc_q.txt', val_acc_q)
+    np.savetxt(f'out/2_har_task_val_acc_r.txt', val_acc_r)
+    np.savetxt(f'out/2_har_task_val_loss_q.txt', val_loss_q)
+    np.savetxt(f'out/2_har_task_val_loss_r.txt', val_loss_r)
 
 
 

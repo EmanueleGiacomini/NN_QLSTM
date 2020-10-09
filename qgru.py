@@ -35,7 +35,7 @@ class QGRU(nn.Module):
         self.fco = nn.Linear(self.hidden_dim, self.num_classes)
 
         # Optimizer
-        self.adam = torch.optim.Adam(self.parameters(), lr=0.001)
+        self.adam = torch.optim.Adam(self.parameters(), lr=0.005)
 
     def forward(self, x):
         # Initialize latent space h
@@ -96,7 +96,7 @@ class GRU(nn.Module):
         self.fco = nn.Linear(self.hidden_dim, self.num_classes)
 
         # Optimizer
-        self.adam = torch.optim.Adam(self.parameters(), lr=0.001)
+        self.adam = torch.optim.Adam(self.parameters(), lr=0.005)
 
     def forward(self, x):
         # Initialize latent space h

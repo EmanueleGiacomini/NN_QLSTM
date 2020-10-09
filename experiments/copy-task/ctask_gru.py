@@ -80,8 +80,9 @@ SEQ_LENGTH = 10
 FEAT_SIZE = 8
 BLANK_SIZE = 100
 EPOCHS = 2000
-HIDDEN_SIZE = 80
-QHIDDEN_SIZE = 40
+QHIDDEN_SIZE = 96
+HIDDEN_SIZE = 48
+
 
 if __name__ == '__main__':
 
@@ -91,10 +92,10 @@ if __name__ == '__main__':
 
     if CUDA:
         net_r = GRU(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
-        net_q = QGRU(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
+        net_q = QGRU(FEAT_SIZE, QHIDDEN_SIZE, CUDA).cuda()
     else:
         net_r = GRU(FEAT_SIZE, HIDDEN_SIZE, CUDA)
-        net_q = QGRU(FEAT_SIZE, HIDDEN_SIZE, CUDA)
+        net_q = QGRU(FEAT_SIZE, QHIDDEN_SIZE, CUDA)
 
     emb = nn.Embedding(FEAT_SIZE + 2, FEAT_SIZE, max_norm=1.0)
 
@@ -163,3 +164,9 @@ if __name__ == '__main__':
             loss_q.append(val_loss)
         if epoch % 10 == 0:
             print(f'QGRU It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')
+
+    print('Training phase ended.')
+    np.savetxt(f'out/memory_task_gru_acc_q_{BLANK_SIZE}.txt', acc_q)
+    np.savetxt(f'out/memory_task_gru_acc_r_{BLANK_SIZE}.txt', acc_r)
+    np.savetxt(f'out/memory_task_gru_loss_q_{BLANK_SIZE}.txt', loss_q)
+    np.savetxt(f'out/memory_task_gru_loss_r_{BLANK_SIZE}.txt', loss_r)
