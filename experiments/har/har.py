@@ -3,12 +3,13 @@ Human Activity Recognition through smartphone data
 """
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.autograd import Variable
-from torch_qnn.q_layers import QuaternionLinear
-
+from qlstm import QLSTM, TLSTM, LSTM
+from qgru import QGRU, GRU
 
 DATASET_ROOT_FS = './UCI HAR Dataset/'
 TRAINING_FS = 'train/'
@@ -70,7 +71,7 @@ def read_labels_lst(path: str, zero_idx=True) -> [int]:
     return np.reshape(labels, (labels.shape[0], 1))
 
 
-def load_ucihar(train=True, onehot=True):
+def load_ucihar(train=True):
     main_fs = DATASET_ROOT_FS
     main_fs += TRAINING_FS if train else TEST_FS
     extension = '_train.txt' if train else '_test.txt'
@@ -81,18 +82,12 @@ def load_ucihar(train=True, onehot=True):
     labels_fs += 'y_train.txt' if train else 'y_test.txt'
     labels = read_labels_lst(labels_fs, True)
     data = merge_data(data_lst)
-    # TODO: Replace TF onehot with Pytorch onehot
-    """
-    if onehot:
-        labels = tf.keras.utils.to_categorical(labels, NUM_CLASSES)
-    """
     return data, labels
 
 
 LABELS = ['WALKING', 'WALKING_UPSTAIRS', 'WALKING_DOWNSTAIRS', 'SITTING', 'STANDING', 'LAYING']
 
-
-class QLSTM(nn.Module):
+"""class QLSTM(nn.Module):
     def __init__(self, feat_size, hidden_size, CUDA, num_classes=None):
         super(QLSTM, self).__init__()
 
@@ -246,6 +241,8 @@ class GTModel(nn.Module):
         x, _ = self.lstm(x)
         x = self.fc1(x[-1, :, :])
         return self.act(x)
+"""
+
 
 def tovar(x, cuda):
     """Transform x in a tensor stored in RAM or VRAM based on cuda value"""
@@ -253,6 +250,7 @@ def tovar(x, cuda):
         return Variable(torch.FloatTensor(x.float()).cuda())
     else:
         return Variable(torch.FloatTensor(x.float()))
+
 
 def load_cb(cval, fval, title, total_time):
     NUM_BARS = 30
@@ -265,16 +263,18 @@ def load_cb(cval, fval, title, total_time):
         print(' Done.')
     return
 
+
 CUDA = True
 FEAT_SIZE = 8
 SEQ_LEN = 128
-QHIDDEN_SIZE = 40
-HIDDEN_SIZE = 20
+QHIDDEN_SIZE = 64
+HIDDEN_SIZE = 32
 OUTPUT_SIZE = NUM_CLASSES
 EPOCHS = 51
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 
 import time
+
 
 def run_epoch(net, train_loader, test_loader, CUDA):
     train_acc = 0.0
@@ -289,8 +289,7 @@ def run_epoch(net, train_loader, test_loader, CUDA):
 
         x, y = tovar(x, CUDA), tovar(y, CUDA)
         net.zero_grad()
-
-        p = net(x)
+        p = net(x)[-1, :]
         y_pred = p
         y = y.view(-1).long()
 
@@ -319,7 +318,7 @@ def run_epoch(net, train_loader, test_loader, CUDA):
         for (x, y) in test_loader:
             x = x.transpose(0, 1).contiguous()
             x, y = tovar(x, CUDA), tovar(y, CUDA)
-            p = net(x)
+            p = net(x)[-1, :]
             y_pred = p
             y = y.view(-1).long()
 
@@ -336,11 +335,21 @@ def run_epoch(net, train_loader, test_loader, CUDA):
     return train_acc, train_loss, test_acc, test_loss
 
 
+TEST_MODELS = {'LSTM80': LSTM(FEAT_SIZE, 80, CUDA, OUTPUT_SIZE).cuda(),
+               'QLSTM160': QLSTM(FEAT_SIZE, 160, CUDA, OUTPUT_SIZE).cuda(),
+               'LSTM32': LSTM(FEAT_SIZE, 32, CUDA, OUTPUT_SIZE).cuda(),
+               'QLSTM64': QLSTM(FEAT_SIZE, 64, CUDA, OUTPUT_SIZE).cuda(),
+               'LSTM16': LSTM(FEAT_SIZE, 16, CUDA, OUTPUT_SIZE).cuda(),
+               'QLSTM32': QLSTM(FEAT_SIZE, 32, CUDA, OUTPUT_SIZE).cuda(),
+               'GRU16': GRU(FEAT_SIZE, 16, CUDA, OUTPUT_SIZE).cuda(),
+               'QGRU32': QGRU(FEAT_SIZE, 32, CUDA, OUTPUT_SIZE).cuda(),
+               'TLSTM32': TLSTM(FEAT_SIZE, 32, CUDA, OUTPUT_SIZE).cuda()}
 
+RESULT_DICT = {}
 
 if __name__ == '__main__':
-    x_train, y_train = load_ucihar(train=True, onehot=False)
-    x_test, y_test = load_ucihar(train=False, onehot=False)
+    x_train, y_train = load_ucihar(train=True)
+    x_test, y_test = load_ucihar(train=False)
 
     x_train, y_train, x_test, y_test = torch.from_numpy(x_train), \
                                        torch.from_numpy(y_train), \
@@ -357,7 +366,35 @@ if __name__ == '__main__':
                              batch_size=BATCH_SIZE,
                              shuffle=False)
 
-    if CUDA:
+    for mname in TEST_MODELS.keys():
+        RESULT_DICT[mname] = {}
+        RESULT_DICT[mname]['train_acc'] = list()
+        RESULT_DICT[mname]['train_loss'] = list()
+        RESULT_DICT[mname]['val_acc'] = list()
+        RESULT_DICT[mname]['val_loss'] = list()
+
+    for epoch in range(EPOCHS):
+        for mname in TEST_MODELS.keys():
+            model = TEST_MODELS[mname]
+            train_acc, train_loss, val_acc, val_loss = run_epoch(model, train_loader, test_loader, CUDA)
+            RESULT_DICT[mname]['train_acc'].append(train_acc)
+            RESULT_DICT[mname]['train_loss'].append(train_loss)
+            RESULT_DICT[mname]['val_acc'].append(val_acc)
+            RESULT_DICT[mname]['val_loss'].append(val_loss)
+
+        if epoch % 5 == 0:
+            print(f'Epoch={epoch}')
+            for mname in TEST_MODELS.keys():
+                train_loss = RESULT_DICT[mname]['train_loss'][-1]
+                train_acc = RESULT_DICT[mname]['train_acc'][-1]
+                val_loss = RESULT_DICT[mname]['val_loss'][-1]
+                val_acc = RESULT_DICT[mname]['val_acc'][-1]
+                print(f'{mname}: loss={train_loss:.4f}, acc={train_acc:.3f}, val_loss={val_loss:.4f},'
+                      f' val_acc={val_acc:.3f}')
+    print('Training ended.')
+    pd.DataFrame(RESULT_DICT).to_csv('./out/results.csv')
+
+    """if CUDA:
         net_q = QLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA, OUTPUT_SIZE).cuda()
         net_r = LSTM(FEAT_SIZE, HIDDEN_SIZE, CUDA, OUTPUT_SIZE).cuda()
     else:
@@ -369,8 +406,7 @@ if __name__ == '__main__':
 
     print(f'(QLSTM) Number of trainable parameters : {nb_param_q}')
     print(f'(LSTM) Number of trainable parameters : {nb_param_p}')
-
-    """Training Loop"""
+    
     acc_r = []
     acc_q = []
     loss_r = []
@@ -404,7 +440,4 @@ if __name__ == '__main__':
     np.savetxt(f'out/2_har_task_val_acc_q.txt', val_acc_q)
     np.savetxt(f'out/2_har_task_val_acc_r.txt', val_acc_r)
     np.savetxt(f'out/2_har_task_val_loss_q.txt', val_loss_q)
-    np.savetxt(f'out/2_har_task_val_loss_r.txt', val_loss_r)
-
-
-
+    np.savetxt(f'out/2_har_task_val_loss_r.txt', val_loss_r)"""

@@ -113,3 +113,29 @@ def quaternion_linear(qinput, r_weight, i_weight, j_weight, k_weight, bias=None)
             return output + bias
         else:
             return output
+
+
+def tessarine_linear(qinput, r_weight, i_weight, j_weight, k_weight, bias=None):
+    """Apply a tessarine linear transformation on input data
+    The function applies the Hamilton Product *
+    To ease the computation, a weight matrix W is obtained, and transformed data is
+    computed as W * Input.
+    """
+
+    w_r = torch.cat([r_weight, -i_weight, j_weight, -k_weight], dim=0)
+    w_i = torch.cat([i_weight, r_weight, k_weight, j_weight], dim=0)
+    w_j = torch.cat([j_weight, -k_weight, r_weight, -i_weight], dim=0)
+    w_k = torch.cat([k_weight, j_weight, i_weight, r_weight], dim=0)
+    W = torch.cat([w_r, w_i, w_j, w_k], dim=1).float()
+
+    if qinput.dim() == 2:
+        if bias is not None:
+            return torch.addmm(bias, qinput, W)
+        else:
+            return torch.mm(qinput, W)
+    else:
+        output = torch.matmul(qinput, W)
+        if bias is not None:
+            return output + bias
+        else:
+            return output

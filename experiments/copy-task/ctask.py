@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
-from qlstm import LSTM, QLSTM
+from qlstm import LSTM, QLSTM, TLSTM
 
 
 def tovar(x, cuda):
@@ -78,8 +78,8 @@ def generateTask(batch, seq_len, feat_size, blank_size, embedding):
 CUDA = True
 N_BATCH_TRAIN = 10
 SEQ_LENGTH = 10
-FEAT_SIZE = 8
-BLANK_SIZE = 10
+FEAT_SIZE = 12
+BLANK_SIZE = 150
 EPOCHS = 2000
 QHIDDEN_SIZE = 80
 HIDDEN_SIZE = 40
@@ -94,29 +94,37 @@ if __name__ == '__main__':
     if CUDA:
         net_r = LSTM(FEAT_SIZE, HIDDEN_SIZE, CUDA).cuda()
         net_q = QLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA).cuda()
+        net_t = TLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA).cuda()
     else:
         net_r = LSTM(FEAT_SIZE, HIDDEN_SIZE, CUDA)
         net_q = QLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA)
+        net_t = TLSTM(FEAT_SIZE, QHIDDEN_SIZE, CUDA)
 
     emb = nn.Embedding(FEAT_SIZE + 2, FEAT_SIZE, max_norm=1.0)
 
     no_params_q = sum(p.numel() for p in net_q.parameters() if p.requires_grad)
     no_params_r = sum(p.numel() for p in net_r.parameters() if p.requires_grad)
+    no_params_t = sum(p.numel() for p in net_t.parameters() if p.requires_grad)
     print(f'QLSTM Trainable parameters: {no_params_q}')
     print(f'LSTM Trainable parameters: {no_params_r}')
+    print(f'TLSTM Trainable parameters: {no_params_t}')
 
     """Training Loop"""
     acc_r = []
     acc_q = []
+    acc_t = []
     loss_r = []
     loss_q = []
+    loss_t = []
     for epoch in range(EPOCHS):
         x_train, y_train = generateTask(N_BATCH_TRAIN, SEQ_LENGTH, FEAT_SIZE, BLANK_SIZE, emb)
+
 
         # x_train shape must be equal to (SEQ_LENGTH, BATCH_SIZE, FEATURE_SIZE) for the networks
         x_train = x_train.reshape((BLANK_SIZE + (2 * SEQ_LENGTH), N_BATCH_TRAIN, FEAT_SIZE))
         x_train_var = tovar(x_train, CUDA)
         y_train_var = tovar(y_train, CUDA)
+
         # LSTM TRAINING
         net_r.zero_grad()
         p = net_r.forward(x_train_var)
@@ -165,11 +173,35 @@ if __name__ == '__main__':
             loss_q.append(val_loss)
         if epoch % 10 == 0:
             print(f'QLSTM It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')
+        """
+        # TLSTM TRAINING
+        net_t.zero_grad()
+        p = net_t.forward(x_train_var)
+        y_pred_t = p.view(-1, FEAT_SIZE + 1)
+        targets = y_train_var.view(-1)
+        loss = nn.CrossEntropyLoss()
+        val_loss = loss(y_pred_t, targets.long())
+
+        val_loss.backward()
+        net_t.adam.step()
+
+        p = p.cpu().data.numpy()
+        shape = np.argmax(p, axis=2).shape
+        p = np.reshape(np.argmax(p, axis=2), shape[0] * shape[1])
+        targets = targets.cpu().data.numpy()
+        acc = np.sum(p == targets) / y_train.size
+
+        if epoch % 5 == 0:
+            acc_t.append(acc)
+            loss_t.append(val_loss)
+        if epoch % 10 == 0:
+            print(f'TLSTM It: {epoch} | Train Loss = {float(val_loss.data)} | Train Acc = {acc}')"""
 
     print('Training phase ended.')
     np.savetxt(f'out/memory_task_acc_q_{BLANK_SIZE}.txt', acc_q)
     np.savetxt(f'out/memory_task_acc_r_{BLANK_SIZE}.txt', acc_r)
+    #np.savetxt(f'out/memory_task_acc_t_{BLANK_SIZE}.txt', acc_t)
     np.savetxt(f'out/memory_task_loss_q_{BLANK_SIZE}.txt', loss_q)
     np.savetxt(f'out/memory_task_loss_r_{BLANK_SIZE}.txt', loss_r)
-
+    #np.savetxt(f'out/memory_task_loss_t_{BLANK_SIZE}.txt', loss_t)
     exit(0)

@@ -85,6 +85,8 @@ HIDDEN_SIZE = 48
 
 
 if __name__ == '__main__':
+    torch.manual_seed(42)
+    np.random.seed(42)
 
     # Create out folder if it doesnt exists
     if not os.path.isdir('out'):
